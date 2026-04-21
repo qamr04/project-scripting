@@ -1,0 +1,30 @@
+function Log-file{
+param ([string]$bericht)
+$datum = Get-Date -format "dd-MM-yyyy HH:mm:ss"
+}
+
+function get-servernaam {
+Clear-Host
+Write-Host "Welkom de basisconfiguratie begint nu."
+Write-Host "Server configuratie gaat van start" 
+Start-Sleep -Seconds 2
+
+$server_naam = Read-Host "Geef een naam in"
+Rename-Computer $server_naam -WhatIf
+Start-Sleep -Seconds 1
+Log-file "Servernaam gewijzigd naar $server_naam" 
+Restart-Computer -WhatIf
+}
+
+function get-workstationnaam{
+clear-host
+write-host "Workstation confguratie gaat nu van start"
+$WS_naam = Read-Host "Geef en naam in voor je workstation"
+Rename-Computer $WS_naam -WhatIf
+Start-Sleep -Seconds 1
+Log-file "Workstation naam gewijzigd naar $WS_naam" 
+Restart-Computer -WhatIf
+}
+
+get-servernaam
+get-workstationnaam
