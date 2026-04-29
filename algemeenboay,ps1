@@ -1,6 +1,11 @@
-function Log-file{
+function Log-file {
 param ([string]$bericht)
-$datum = Get-Date -format "dd-MM-yyyy HH:mm:ss"
+$datum = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+$map = "C:\scripting\logs"
+if (!(Test-Path $map)) {
+ New-Item $map -ItemType Directory
+ }
+Add-Content "C:\scripting\logs\" "$datum - $bericht"
 }
 
 function get-servernaam {
@@ -25,6 +30,3 @@ Start-Sleep -Seconds 1
 Log-file "Workstation naam gewijzigd naar $WS_naam" 
 Restart-Computer -WhatIf
 }
-
-get-servernaam
-get-workstationnaam
