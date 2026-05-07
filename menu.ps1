@@ -1,42 +1,35 @@
-Import-Module "C:\Program Files\WindowsPowerShell\Modules\project-scripting\algemeenBOAY.psm1"
+function logboek {
+#synopsis dit schrijf een actie naar het installatie logbestand
+param ([string] $bericht)
+$logmap = "C:\scripting\logs"
+$logfile = "C:\scripting\logs\InstallatieLogBOAY.txt"
+if (!(Test-Path $logmap)){
+#zoekt eerst uit of de map bestaat zo niet maakt die de juiste map aan
+New-Item -Path $logmap -ItemType Directory
+}
+$datum = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+Add-Content -Path "$logMap\InstallatieLogBOAY.txt" -Value "$datum - $bericht"
+}
 
-do {
-    Clear-Host
-    Write-Host "Welkom dit is mijn project voor scripting"
-    Write-Host ""
-    Write-Host "1) Basisconfiguratie server"
-    Write-Host "2) Basisconfiguratie workstation"
-    Write-Host "3) Domain configuratie"
-    Write-Host "4) Stoppen"
-    Write-Host ""
+function get-servernaam {
+Clear-Host
+Write-Host "Welkom de basisconfiguratie begint nu."
+Write-Host "Server configuratie gaat van start" 
+Start-Sleep -Seconds 2
 
-    [int]$keuze = Read-Host "Wat is je keuze"
+$server_naam = Read-Host "Geef een naam in"
+Rename-Computer $server_naam -WhatIf
+Start-Sleep -Seconds 1
+Logboek "Servernaam gewijzigd naar $server_naam" 
+Restart-Computer -WhatIf
+}
 
-    switch ($keuze) {
-        1 {
-            Get-Servernaam
-            Read-Host "Druk op Enter om verder te gaan"
-        }
-
-        2 {
-            Get-Workstationnaam
-            Read-Host "Druk op Enter om verder te gaan"
-        }
-
-        3 {
-            Write-Host "Domain configuratie"
-            Read-Host "Druk op Enter om verder te gaan"
-        }
-
-        4 {
-            Clear-Host
-            Write-Host "Programma stopt"
-        }
-
-        Default {
-            Write-Host "Ongeldige keuze, kies 1, 2, 3 of 4"
-            Read-Host "Druk op Enter om verder te gaan"
-        }
-    }
-
-} while ($keuze -ne 4)
+function get-workstationnaam{
+clear-host
+write-host "Workstation confguratie gaat nu van start"
+$WS_naam = Read-Host "Geef en naam in voor je workstation"
+Rename-Computer $WS_naam -WhatIf
+Start-Sleep -Seconds 1
+Logboek "Workstation naam gewijzigd naar $WS_naam" 
+Restart-Computer -WhatIf
+}
