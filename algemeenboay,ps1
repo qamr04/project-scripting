@@ -1,26 +1,40 @@
 function logboek {
-#synopsis dit schrijf een actie naar het installatie logbestand
+# synopsis: dit schrijft een actie naar het installatie logbestand
 param ([string] $bericht)
-$logmap = "C:\scripting\logs"
-$logfile = "C:\scripting\logs\InstallatieLogBOAY.txt"
-if (!(Test-Path $logmap)){
-#zoekt eerst uit of de map bestaat zo niet maakt die de juiste map aan
-New-Item -Path $logmap -ItemType Directory
+# Split-Path met -Parent haalt de bovenliggende map op.
+# In dit project gaan we zo van de map "modules" terug naar de hoofdmap "scripting".
+$projectmap = Split-Path $PSScriptRoot -Parent
+$logmap = Join-Path $projectmap "logs"
+if (!(Test-Path $logmap)) {
+New-Item -Path $logmap -ItemType Directory -Force | Out-Null
 }
 $datum = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-Add-Content -Path "$logMap\InstallatieLogBOAY.txt" -Value "$datum - $bericht"
+$logfile = Join-Path $logmap "InstallatieLogBOAY.txt"
+Add-Content -Path $logfile -Value "$datum - $bericht"
 }
-
 function get-servernaam {
 Clear-Host
 Write-Host "Welkom de basisconfiguratie begint nu."
 Write-Host "Server configuratie gaat van start" 
-Start-Sleep -Seconds 2
-
-$server_naam = Read-Host "Geef een naam in"
+$pc_settings = lees-computersettings
+if ($null -eq $pc_settings){
+write-host "configuratie gestop omdat Computer.settings.xml niet gevonden is"
+return
+}
+$server_naam = $pc_settings.Settings.name
+Write-Host "Servernaam in XML is: $server_naam"
+$keuze = Read-Host "Wil je deze naam veranderen? j/n"
+if($keuze -eq "j"){
+$server_naam = Read-host "Geef de nieuwe servernaam in"
+write-host "Nieuwe servernaam word: $server_naam"
+logboek "Gebruiker koos nieuwe servernaam: $server_naam"
+}
+else{
+Write-Host "naam uit XML word gebruikt: $server_naam"
+logboek "Servernaam uit XML wordt gebruikt: $server_naam"  
+}
 Rename-Computer $server_naam -WhatIf
-Start-Sleep -Seconds 1
-Logboek "Servernaam gewijzigd naar $server_naam" 
+Logboek "Servernaam gewijzigd naar $server_naam"
 Restart-Computer -WhatIf
 }
 
@@ -29,7 +43,30 @@ clear-host
 write-host "Workstation confguratie gaat nu van start"
 $WS_naam = Read-Host "Geef en naam in voor je workstation"
 Rename-Computer $WS_naam -WhatIf
-Start-Sleep -Seconds 1
+
 Logboek "Workstation naam gewijzigd naar $WS_naam" 
 Restart-Computer -WhatIf
+}
+
+function lees-computersettings{
+$projectMap = Split-Path $PSScriptRoot
+$settingsbestand = join-path $projectMap "settings\Computer.Settings.xml"
+if (!(test-path $settingsbestand)){
+Write-Host "Computer.Settings.xml niet gevonden"
+logboek "Computer.Settings.xml niet gevonden"
+}
+else {
+[xml]$computerSettings = Get-Content $settingsBestand -Raw
+Write-Host "Computer.Settings.xml werd ingelezen"
+logboek "Computer.Settings.xml werd ingelezen"
+return $computerSettings
+}
+}
+
+function Computersettings{
+#leest  het computer.settings.xml bestand in 
+Clear-Host
+Write-Host "Server configuratie begint"
+$pc_settings 
+
 }
