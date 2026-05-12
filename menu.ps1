@@ -1,5 +1,13 @@
-Import-Module "C:\Program Files\WindowsPowerShell\Modules\project-scripting\algemeenBOAY.psm1"
+$modulePad = Join-Path $PSScriptRoot "modules\algemeenboay.psm1"
 
+if (Test-Path $modulePad) {
+    Import-Module $modulePad -Force
+}
+else {
+    Write-Host "Module niet gevonden: $modulePad"
+    Read-Host "Druk op Enter om te stoppen"
+    exit
+}
 do {
     Clear-Host
     Write-Host "Welkom dit is mijn project voor scripting"
@@ -14,12 +22,12 @@ do {
 
     switch ($keuze) {
         1 {
-            Get-Servernaam
+            get-servernaam
             Read-Host "Druk op Enter om verder te gaan"
         }
 
         2 {
-            Get-Workstationnaam
+            get-workstationnaam
             Read-Host "Druk op Enter om verder te gaan"
         }
 
