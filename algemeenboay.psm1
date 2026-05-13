@@ -1,6 +1,8 @@
 function logboek {
     # synopsis: dit schrijft een actie naar het installatie logbestand
     param ([string] $bericht)
+    # Split-Path met -Parent haalt de bovenliggende map op.
+    # In dit project gaan we zo van de map "modules" terug naar de hoofdmap "scripting".
     $projectmap = Split-Path $PSScriptRoot -Parent
     $logmap = Join-Path $projectmap "logs"
     $datum = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
@@ -9,12 +11,13 @@ function logboek {
 }
 
 function get-servernaam {
+    Clear-Host
     Write-Host "Welkom de basisconfiguratie begint nu."
     Write-Host "Server configuratie gaat van start" 
 
     $pc_settings = lees-computersettings
     if ($null -eq $pc_settings){
-        Write-Host "configuratie gestopt omdat Computer.settings.xml niet gevonden is"
+        write-host "configuratie gestop omdat Computer.settings.xml niet gevonden is"
         return
     }
 
@@ -22,35 +25,39 @@ function get-servernaam {
     Write-Host "Servernaam in XML is: $server_naam"
     $keuze = Read-Host "Wil je deze naam veranderen? j/n"
     if($keuze -eq "j"){
-        $server_naam = Read-Host "Geef de nieuwe servernaam in"
-        Write-Host "Nieuwe servernaam word: $server_naam"
+        $server_naam = Read-host "Geef de nieuwe servernaam in"
+        write-host "Nieuwe servernaam word: $server_naam"
         logboek "Gebruiker koos nieuwe servernaam: $server_naam"
-    } else {
-        Write-Host "naam uit XML wordt gebruikt: $server_naam"
+    }
+    else{
+        Write-Host "naam uit XML word gebruikt: $server_naam"
         logboek "Servernaam uit XML wordt gebruikt: $server_naam"  
     }
 
-    Rename-Computer $server_naam 
-    logboek "Servernaam gewijzigd naar $server_naam"
-    Restart-Computer 
+    Rename-Computer $server_naam -WhatIf
+    Logboek "Servernaam gewijzigd naar $server_naam"
+    Restart-Computer -WhatIf
 }
 
 function get-workstationnaam {
-    Write-Host "Workstation configuratie gaat nu van start"
+    Clear-Host
+    Write-Host "Workstation confguratie gaat nu van start"
+
     $WS_naam = Read-Host "Geef een naam in voor je workstation"
-    Rename-Computer $WS_naam 
-    logboek "Workstation naam gewijzigd naar $WS_naam" 
-    Restart-Computer 
+    Rename-Computer $WS_naam -WhatIf
+    Logboek "Workstation naam gewijzigd naar $WS_naam" 
+    Restart-Computer -WhatIf
 }
 
 function lees-computersettings {
     $projectMap = Split-Path $PSScriptRoot
-    $settingsbestand = Join-Path $projectMap "settings\Computer.Settings.xml"
+    $settingsbestand = join-path $projectMap "settings\Computer.Settings.xml"
 
-    if (!(Test-Path $settingsbestand)){
+    if (!(test-path $settingsbestand)){
         Write-Host "Computer.Settings.xml niet gevonden"
         logboek "Computer.Settings.xml niet gevonden"
-    } else {
+    }
+    else {
         [xml]$computerSettings = Get-Content $settingsbestand -Raw
         Write-Host "Computer.Settings.xml werd ingelezen"
         logboek "Computer.Settings.xml werd ingelezen"
@@ -59,36 +66,33 @@ function lees-computersettings {
 }
 
 function Computersettings {
+    # leest het computer.settings.xml bestand in 
+    Clear-Host
     Write-Host "Server configuratie begint"
     $pc_settings 
 }
-
-function configuratie-Netwerk {
-    param([xml]$pc_settings)
+function Configureer-Netwerk {
+    param(
+        [xml]$pc_settings,
+        [string]$type  # "Server" of "Workstation"
+    )
 
     foreach ($adapter in $pc_settings.Settings.networksettings.networkadapter) {
-        $naam = $adapter.name
-        $ip = $adapter.ip
-        $prefix = $adapter.prefixlength
-        $gateway = $adapter.gateway
-        $dns = $adapter.dns
+        if ($adapter.role -ne $type) { continue }  # alleen adapters voor deze rol
 
-        # Skip adapters zonder IP
-        if ([string]::IsNullOrEmpty($ip)) { continue }
+        if ([string]::IsNullOrEmpty($adapter.ip)) { continue }  # skip lege IP's
 
-        # Stel statisch IP en gateway in
-        New-NetIPAddress -InterfaceAlias $naam -IPAddress $ip -PrefixLength $prefix -DefaultGateway $gateway
+        New-NetIPAddress -InterfaceAlias $adapter.name -IPAddress $adapter.ip -PrefixLength $adapter.prefixlength -DefaultGateway $adapter.gateway
+        Set-DnsClientServerAddress -InterfaceAlias $adapter.name -ServerAddresses $adapter.dns
 
-        # Stel DNS in
-        Set-DnsClientServerAddress -InterfaceAlias $naam -ServerAddresses $dns
-
-        logboek "Adapter $naam statisch ingesteld: IP $ip, Gateway $gateway, DNS $dns"
+        logboek "Adapter $($adapter.name) geconfigureerd voor $type IP $($adapter.ip), Gateway $($adapter.gateway), DNS $($adapter.dns)"
     }
 }
 
 function configureer-computer {
     param ([string]$type = "Server")
 
+    Clear-Host
     Write-Host "$type configuratie gaat nu van start"
     $pc_settings = lees-computersettings
     if ($null -eq $pc_settings) { return }
@@ -102,29 +106,18 @@ function configureer-computer {
         logboek "$type naam uit XML wordt gebruikt: $comp_naam"
     }
 
-    Rename-Computer -NewName $comp_naam 
+    Rename-Computer -NewName $comp_naam -WhatIf
     logboek "$type naam gewijzigd naar $comp_naam"
 
+    # Netwerk configureren
     configuratie-netwerk -pc_settings $pc_settings
 
-    # Stel RunOnce in zodat het script na reboot terugstart
-$scriptPad = $MyInvocation.MyCommand.Path
-$runOnceKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
-$runOnceName = "VoerScriptUit"
-Set-ItemProperty -Path $runOnceKey -Name $runOnceName -Value "powershell.exe -ExecutionPolicy Bypass -File `"$scriptPad`"" -Force
-logboek "RunOnce key ingesteld voor automatische herstart"
+    #runonce regkey
+    $scriptPad = $MyInvocation.MyCommand.Path
+    $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+    $regNaam = "VoerScriptUit"
+    Set-ItemProperty -Path $regKey -Name $regNaam -Value "powershell.exe -ExecutionPolicy Bypass -File `"$scriptPad`""
+    logboek "Script ingesteld om na reboot automatisch opnieuw te starten"
 
-# Tweede key: status flag voor project, bijvoorbeeld InitComplete
-$secondKeyPath = "HKLM:\SOFTWARE\MijnProject"
-$secondKeyName = "InitComplete"
-$secondKeyValue = 1
-if (-not (Test-Path $secondKeyPath)) { New-Item -Path $secondKeyPath -Force | Out-Null }
-Set-ItemProperty -Path $secondKeyPath -Name $secondKeyName -Value $secondKeyValue
-logboek "Tweede registry key ingesteld: $secondKeyPath\$secondKeyName = $secondKeyValue"
-
-# Herstart
-Restart-Computer -Force
+    Restart-Computer -WhatIf
 }
-
-# Zorg dat deze functies beschikbaar zijn buiten de module
-Export-ModuleMember -Function configureer-computer, configuratie-netwerk, logboek, lees-computersettings, get-servernaam, get-workstationnaam, Computersettings
